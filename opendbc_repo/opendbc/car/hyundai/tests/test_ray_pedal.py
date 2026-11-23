@@ -104,14 +104,18 @@ class TestRayPedal(unittest.TestCase):
   def test_command_output_map_and_sensor_scaling(self):
     packer = CANPacker('hyundai_kia_ray_pedal')
     for amount, counter, payload in (
+      (0.0, 4, '00000000040e'),
       (0.001, 4, '00000000040e'),  # disabled
+      (0.00101, 4, '010901f38433'),
+      (0.02, 0, '0117021080cc'),
       (0.10, 3, '0154028b830c'),
-      (0.55, 7, '02a9053e87b4'),
-      (0.65, 8, '02f505d788fb'),
-      (0.70, 4, '031b062484f5'),  # 795 / 1572
+      (0.2407, 4, '01bf03638481'),
+      (0.2408, 4, '01bf03638481'),
+      (0.50, 7, '02a2052f871a'),
+      (0.80, 4, '03a907448480'),  # 937 / 1860
     ):
       self.assertEqual(create_ray_pedal_command(packer, amount, counter), (0x200, bytes.fromhex(payload), 0))
-    neutral = packer.make_can_msg('GAS_COMMAND', 0, {'GAS_COMMAND': 0, 'GAS_COMMAND2': 0, 'ENABLE': 1})
+    neutral = packer.make_can_msg('GAS_COMMAND', 0, {'GAS_COMMAND': 8.2875, 'GAS_COMMAND2': 8.2875, 'ENABLE': 1})
     self.assertEqual(neutral[1][:4], bytes.fromhex('010801f1'))  # 264 / 497
     sensor = packer.dbc.name_to_msg['GAS_SENSOR'].sigs
     self.assertEqual((sensor['INTERCEPTOR_GAS'].factor, sensor['INTERCEPTOR_GAS'].offset), (0.672, -177.408))

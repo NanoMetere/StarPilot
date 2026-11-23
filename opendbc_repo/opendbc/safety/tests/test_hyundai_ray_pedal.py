@@ -63,6 +63,7 @@ class TestHyundaiRayPedal(unittest.TestCase):
     self.assertTrue(self.safety.safety_tx_hook(self.command(.55)))
     self.assertTrue(self.safety.safety_tx_hook(self.command(.65)))
     self.assertTrue(self.safety.safety_tx_hook(self.command(.70)))
+    self.assertTrue(self.safety.safety_tx_hook(self.command(.80)))
     self.assertTrue(self.safety.safety_tx_hook(self.command(0)))
     for param in (0x9405, 0x9801, 0x1805, 0x9804, 0x9807, 0x9885, 0x9825, 0xB805, 0):
       self.safety.set_safety_hooks(structs.CarParams.SafetyModel.hyundai, param)
@@ -73,7 +74,7 @@ class TestHyundaiRayPedal(unittest.TestCase):
 
   def test_command_limits_channels_checksum_and_buses(self):
     self.arm()
-    for gas in (.71, 1):
+    for gas in (.801, 1):
       self.assertFalse(self.safety.safety_tx_hook(self.command(gas)))
     for bus in (1, 2):
       self.assertFalse(self.safety.safety_tx_hook(self.command(.1, bus)))
@@ -98,7 +99,7 @@ class TestHyundaiRayPedal(unittest.TestCase):
   def test_generated_channel_rounding_bound_exhaustive(self):
     self.arm()
     maximum = 0
-    for step in range(101, 70001):
+    for step in range(101, 80001):
       frame = create_ray_pedal_command(self.pedal, step / 100000, step & 15)
       track1 = int.from_bytes(frame[1][:2], 'big')
       track2 = int.from_bytes(frame[1][2:4], 'big')

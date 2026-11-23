@@ -7,7 +7,7 @@ from opendbc.car.hyundai.tests.test_ray_pedal import ray_controller
 from opendbc.safety.tests.test_hyundai_ray_pedal import TestHyundaiRayPedal
 
 
-@pytest.mark.parametrize("speed,cap", [(0, 0.55), (12, 0.55), (20, 0.65), (25, 0.70), (35, 0.70)])
+@pytest.mark.parametrize("speed,cap", [(0, 0.55), (12, 0.55), (20, 0.65), (22.5, 0.725), (25, 0.80), (35, 0.80)])
 def test_speed_cap_and_slew(speed, cap):
   assert get_ray_pedal_target(10, speed, min(speed + 2, 40)) == pytest.approx(cap)
   assert ray_pedal_gas(0, speed, 10, min(speed + 2, 40)) == pytest.approx(0.02)
@@ -43,14 +43,34 @@ def test_actual_controller_disabled_frames_on_gates(gate):
   assert controller._ray_pedal_gas_last == 0
 
 
+def test_controller_slew_to_calibrated_cap_and_release():
+  _, controller, cc, cs = ray_controller()
+  cs.out.vEgo = cs.out.vEgoRaw = 25.0
+  cc.hudControl.setSpeed = 35.0
+  cc.actuators.accel = 2.5
+  for frame in range(0, 165, 4):
+    controller.frame = frame
+    cc.longActive = frame < 164
+    _, frames = controller.update(cc.as_reader(), cs, frame * 10_000_000)
+    data = next(msg[1] for msg in frames if msg[0] == 0x200)
+    if frame == 0:
+      assert data == bytes.fromhex("0117021080cc")  # first 2% step
+    elif frame == 160:
+      assert controller._ray_pedal_gas_last == 0.80
+      assert data[:5] == bytes.fromhex("03a9074488")
+    elif frame == 164:
+      assert controller._ray_pedal_gas_last == 0.0
+      assert data[:5] == bytes.fromhex("0000000009")
+
+
 class TestNativeWafflesBoundaries(TestHyundaiRayPedal):
   def test_each_raw_track_boundary(self):
     self.arm()
     for track1, track2, allowed in (
-      (264, 497, True), (795, 1572, True),
+      (264, 497, True), (937, 1860, True),
       (263, 497, False), (264, 496, False),
-      (796, 1572, False), (795, 1573, False),
-      (795, 1570, False),  # inside both raw limits, outside the track correlation limit
+      (938, 1860, False), (937, 1861, False),
+      (937, 1857, False),  # inside both raw limits, outside the track correlation limit
     ):
       data = bytearray(track1.to_bytes(2, "big") + track2.to_bytes(2, "big") + bytes([0x81, 0]))
       data[-1] = pedal_checksum(0, None, data)

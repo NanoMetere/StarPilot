@@ -1,7 +1,7 @@
 import numpy as np
 from opendbc.car import rate_limit
 
-RAY_PEDAL_COMMAND_CAP = 0.70
+RAY_PEDAL_COMMAND_CAP = 0.80
 RAY_PEDAL_CAP_SPEED_BP = [0.0, 12.0, 20.0, 25.0]
 RAY_PEDAL_CAP_V = [0.55, 0.55, 0.65, RAY_PEDAL_COMMAND_CAP]
 RAY_PEDAL_OFFSET_SPEED_BP = [0.0, 2.0, 4.0, 8.0, 12.0, 16.0, 20.0, 25.0]
@@ -36,7 +36,9 @@ def create_ray_pedal_command(packer, gas_amount, idx):
   enable = gas_amount > 0.001
   values = {"ENABLE": enable, "COUNTER_PEDAL": idx & 0xF}
   if enable:
-    values.update(GAS_COMMAND=gas_amount * 255., GAS_COMMAND2=gas_amount * 255.)
+    # Raw neutral reads 3.25% on the fitted scale. Preserve the low-demand slope up to the 24.07% crossover.
+    command = max(gas_amount, 0.0325 + 0.865 * gas_amount) * 255.
+    values.update(GAS_COMMAND=command, GAS_COMMAND2=command)
   return packer.make_can_msg("GAS_COMMAND", 0, values)
 
 

@@ -101,6 +101,22 @@ class TestRayPedal(unittest.TestCase):
     self.assertEqual(packet[1][:4], bytes(4))
     self.assertEqual(packet[1][4] & 15, 15)
 
+  def test_command_output_map_and_sensor_scaling(self):
+    packer = CANPacker('hyundai_kia_ray_pedal')
+    for amount, counter, payload in (
+      (0.001, 4, '00000000040e'),  # disabled
+      (0.10, 3, '0154028b830c'),
+      (0.55, 7, '02a9053e87b4'),
+      (0.65, 8, '02f505d788fb'),
+      (0.70, 4, '031b062484f5'),  # 795 / 1572
+    ):
+      self.assertEqual(create_ray_pedal_command(packer, amount, counter), (0x200, bytes.fromhex(payload), 0))
+    neutral = packer.make_can_msg('GAS_COMMAND', 0, {'GAS_COMMAND': 0, 'GAS_COMMAND2': 0, 'ENABLE': 1})
+    self.assertEqual(neutral[1][:4], bytes.fromhex('010801f1'))  # 264 / 497
+    sensor = packer.dbc.name_to_msg['GAS_SENSOR'].sigs
+    self.assertEqual((sensor['INTERCEPTOR_GAS'].factor, sensor['INTERCEPTOR_GAS'].offset), (0.672, -177.408))
+    self.assertEqual((sensor['INTERCEPTOR_GAS2'].factor, sensor['INTERCEPTOR_GAS2'].offset), (0.332, -165.004))
+
   def test_controller_cadence_override_cancellation_and_no_scc_commands(self):
     cp, controller, command, state = ray_controller()
 

@@ -46,7 +46,12 @@ def test_actual_controller_disabled_frames_on_gates(gate):
 class TestNativeWafflesBoundaries(TestHyundaiRayPedal):
   def test_each_raw_track_boundary(self):
     self.arm()
-    for a, b, allowed in [(530, 1035, True), (531, 1035, False), (530, 1036, False), (263, 497, False), (264, 496, False), (530, 980, False)]:
-      data = bytearray(a.to_bytes(2, "big") + b.to_bytes(2, "big") + bytes([0x81, 0]))
+    for track1, track2, allowed in (
+      (264, 497, True), (795, 1572, True),
+      (263, 497, False), (264, 496, False),
+      (796, 1572, False), (795, 1573, False),
+      (795, 1570, False),  # inside both raw limits, outside the track correlation limit
+    ):
+      data = bytearray(track1.to_bytes(2, "big") + track2.to_bytes(2, "big") + bytes([0x81, 0]))
       data[-1] = pedal_checksum(0, None, data)
-      self.assertEqual(self.safety.safety_tx_hook(self.packet((0x200, bytes(data), 0))), allowed)
+      self.assertEqual(self.safety.safety_tx_hook(self.packet((0x200, bytes(data), 0))), allowed, (track1, track2))
